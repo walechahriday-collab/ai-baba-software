@@ -3,16 +3,20 @@
   "builds": [
     {
       "src": "server.py",
-      "use": "@vercel/python",
-      "config": {
-        "includeFiles": ["public/**"]
-      }
+      "use": "@vercel/python"
     }
   ],
   "routes": [
     {
+      "src": "/api/reading",
+      "dest": "/server.py"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
       "src": "/(.*)",
-      "dest": "server.py"
+      "dest": "/index.html"
     }
   ]
 }

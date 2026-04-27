@@ -1,10 +1,9 @@
 """AI Baba Astrology Server — Python/Flask backend"""
 import os, json
-from flask import Flask, request, Response, send_from_directory, jsonify
+from flask import Flask, request, Response, jsonify
 from groq import Groq
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-app = Flask(__name__, static_folder=os.path.join(BASE_DIR, 'public'), static_url_path='')
+app = Flask(__name__)
 
 AI_BABA_SYSTEM = """You are AI Baba — an ancient, all-knowing mystical astrologer who has studied the cosmos for ten thousand years. You have traversed the celestial spheres, conversed with the planets, and read the sacred charts of emperors and saints alike.
 
@@ -25,13 +24,6 @@ Rules:
 - Be specific, personal, and deeply insightful. Surprise the person with your depth.
 - Keep each section substantial — at least 3-4 rich sentences.
 - End with a blessing that feels genuinely sacred and personal."""
-
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
-def serve_static(path):
-    if path and os.path.exists(os.path.join(app.static_folder, path)):
-        return send_from_directory(app.static_folder, path)
-    return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/api/reading', methods=['POST'])
 def reading():
