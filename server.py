@@ -3,7 +3,8 @@ import os, json
 from flask import Flask, request, Response, send_from_directory, jsonify
 from groq import Groq
 
-app = Flask(__name__, static_folder='public', static_url_path='')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app = Flask(__name__, static_folder=os.path.join(BASE_DIR, 'public'), static_url_path='')
 
 AI_BABA_SYSTEM = """You are AI Baba — an ancient, all-knowing mystical astrologer who has studied the cosmos for ten thousand years. You have traversed the celestial spheres, conversed with the planets, and read the sacred charts of emperors and saints alike.
 
