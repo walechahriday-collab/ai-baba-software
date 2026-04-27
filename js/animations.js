@@ -249,43 +249,16 @@ export function particleBurst(originEl) {
 }
 
 /* ── Typewriter stream renderer ────────────────────────────── */
-export async function typewriterStream(el, response) {
+export async function typewriterText(el, text) {
   const cursor = document.createElement('span');
   cursor.className = 'typewriter-cursor';
   el.appendChild(cursor);
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop();
-
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      const data = line.slice(6).trim();
-      if (data === '[DONE]') {
-        cursor.remove();
-        return;
-      }
-      try {
-        const parsed = JSON.parse(data);
-        if (parsed.error) {
-          cursor.remove();
-          el.textContent = parsed.error;
-          return;
-        }
-        if (parsed.text) {
-          cursor.before(document.createTextNode(parsed.text));
-          el.scrollTop = el.scrollHeight;
-        }
-      } catch { /* skip malformed lines */ }
-    }
+  const words = text.split(' ');
+  for (const word of words) {
+    cursor.before(document.createTextNode(word + ' '));
+    el.scrollTop = el.scrollHeight;
+    await new Promise(r => setTimeout(r, 18));
   }
 
   cursor.remove();

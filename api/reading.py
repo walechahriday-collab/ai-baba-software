@@ -66,22 +66,13 @@ Calculated Placements:
 Please give {body.get('name', 'this seeker')} a profound, personal, and beautifully written astrological reading."""
 
     client = Groq(api_key=api_key)
-
-    def generate():
-        stream = client.chat.completions.create(
-            model='llama-3.3-70b-versatile',
-            messages=[
-                {'role': 'system', 'content': system_prompt},
-                {'role': 'user', 'content': user_message},
-            ],
-            stream=True,
-            max_tokens=2000,
-        )
-        for chunk in stream:
-            text = chunk.choices[0].delta.content or ''
-            if text:
-                yield f"data: {json.dumps({'text': text})}\n\n"
-        yield "data: [DONE]\n\n"
-
-    return Response(generate(), mimetype='text/event-stream',
-                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+    response = client.chat.completions.create(
+        model='llama-3.3-70b-versatile',
+        messages=[
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': user_message},
+        ],
+        max_tokens=2000,
+    )
+    text = response.choices[0].message.content
+    return jsonify({'text': text})
