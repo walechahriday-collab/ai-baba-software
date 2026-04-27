@@ -1,8 +1,6 @@
 {
-  "outputDirectory": "public",
-  "functions": {
-    "api/reading.py": {
-      "maxDuration": 60
-    }
-  }
+  "version": 2,
+  "rewrites": [
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
 }
