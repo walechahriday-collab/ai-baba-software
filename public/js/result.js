@@ -1,5 +1,5 @@
 /* result.js — Reading page logic */
-import { initStarfield, initZodiacWheel, typewriterStream } from './animations.js';
+import { initStarfield, initZodiacWheel, typewriterText } from './animations.js';
 import { fetchReading } from './api.js';
 import { getSignByName, SIGNS } from './astrology.js';
 
@@ -102,8 +102,7 @@ async function loadReading() {
     if (stopWheel) stopWheel();
     if (readingEl) readingEl.classList.remove('hidden');
     if (readingContent) {
-      await typewriterStream(readingContent, response);
-      // Apply markdown-like bold to **text**
+      await typewriterText(readingContent, response);
       formatBold(readingContent);
     }
   } catch (err) {

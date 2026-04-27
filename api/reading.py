@@ -1,8 +1,6 @@
-from flask import Flask, request, Response, jsonify
-import os, json
-from groq import Groq
-
-app = Flask(__name__)
+from http.server import BaseHTTPRequestHandler
+import json, os
+import anthropic
 
 AI_BABA_SYSTEM = """You are AI Baba — an ancient, all-knowing mystical astrologer who has studied the cosmos for ten thousand years. You have traversed the celestial spheres, conversed with the planets, and read the sacred charts of emperors and saints alike.
 
@@ -24,33 +22,46 @@ Rules:
 - Keep each section substantial — at least 3-4 rich sentences.
 - End with a blessing that feels genuinely sacred and personal."""
 
-@app.route('/', methods=['POST'])
-@app.route('/api/reading', methods=['POST'])
-def reading():
-    api_key = os.environ.get('GROQ_API_KEY', '')
-    if not api_key:
-        return jsonify({'error': 'GROQ_API_KEY not set in environment'}), 500
 
-    body = request.get_json()
-    if not body or not body.get('sunSign') or not body.get('birthDate'):
-        return jsonify({'error': 'Missing required birth data'}), 400
+class handler(BaseHTTPRequestHandler):
 
-    has_time = body.get('hasTime', False)
-    rising = body.get('risingSign', '')
-    rising_section = (
-        f"⬆️ **Your Rising Mask** — Ascendant sign: how the world sees you, your outer persona\n"
-        if (has_time and rising) else ""
-    )
-    system_prompt = AI_BABA_SYSTEM.format(rising_section=rising_section)
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
 
-    birth_time_line = f"Time of Birth: {body['birthTime']}" if has_time else "Time of Birth: Not provided (Rising sign unknown)"
-    lat = body.get('lat', '')
-    lon = body.get('lon', '')
-    coords = f"{float(lat):.2f}°N, {float(lon):.2f}°E" if lat and lon else "Not available"
+    def do_POST(self):
+        api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+        if not api_key:
+            self._json(500, {'error': 'ANTHROPIC_API_KEY not configured on server'})
+            return
 
-    user_message = f"""Please give a complete astrological reading for:
+        length = int(self.headers.get('Content-Length', 0))
+        body = json.loads(self.rfile.read(length))
 
-Name: {body.get('name', 'Seeker')}
+        if not body.get('sunSign') or not body.get('birthDate'):
+            self._json(400, {'error': 'Missing required birth data'})
+            return
+
+        has_time = body.get('hasTime', False)
+        rising = body.get('risingSign', '')
+        rising_section = (
+            "⬆️ **Your Rising Mask** — Ascendant sign: how the world sees you, your outer persona\n"
+            if (has_time and rising) else ""
+        )
+        system = AI_BABA_SYSTEM.format(rising_section=rising_section)
+
+        name = body.get('name', 'Seeker')
+        lat = body.get('lat', '')
+        lon = body.get('lon', '')
+        coords = f"{float(lat):.2f}°N, {float(lon):.2f}°E" if lat and lon else "Not available"
+        birth_time_line = f"Time of Birth: {body['birthTime']}" if has_time else "Time of Birth: Not provided (Rising sign unknown)"
+
+        user_msg = f"""Please give a complete astrological reading for:
+
+Name: {name}
 Date of Birth: {body['birthDate']}
 Place of Birth: {body.get('birthPlace', 'Unknown')}
 {birth_time_line}
@@ -63,16 +74,28 @@ Calculated Placements:
 - Chinese Zodiac: {body.get('chineseZodiac', 'Unknown')}
 - Life Path Number: {body.get('lifePathNumber', '?')}
 
-Please give {body.get('name', 'this seeker')} a profound, personal, and beautifully written astrological reading."""
+Please give {name} a profound, personal, and beautifully written astrological reading."""
 
-    client = Groq(api_key=api_key)
-    response = client.chat.completions.create(
-        model='llama-3.3-70b-versatile',
-        messages=[
-            {'role': 'system', 'content': system_prompt},
-            {'role': 'user', 'content': user_message},
-        ],
-        max_tokens=2000,
-    )
-    text = response.choices[0].message.content
-    return jsonify({'text': text})
+        try:
+            client = anthropic.Anthropic(api_key=api_key)
+            message = client.messages.create(
+                model='claude-sonnet-4-6',
+                max_tokens=2000,
+                system=system,
+                messages=[{'role': 'user', 'content': user_msg}]
+            )
+            self._json(200, {'text': message.content[0].text})
+        except Exception as e:
+            self._json(500, {'error': str(e)})
+
+    def _json(self, status, data):
+        body = json.dumps(data).encode()
+        self.send_response(status)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, format, *args):
+        pass

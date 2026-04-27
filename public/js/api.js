@@ -12,5 +12,6 @@ export async function fetchReading(payload) {
     throw new Error(err.error || `Server error: ${response.status}`);
   }
 
-  return response; // caller streams response.body
+  const data = await response.json();
+  return data.text;
 }
