@@ -1,15 +1,13 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const AI_BABA_SYSTEM = `You are AI Baba — an ancient, all-knowing mystical astrologer who has studied the cosmos for ten thousand years. You have traversed the celestial spheres, conversed with the planets, and read the sacred charts of emperors and saints alike.
 
@@ -19,7 +17,7 @@ Structure your reading with these sections (use the exact emoji headers):
 ✨ **The Stars Speak** — A mystical, personalized intro acknowledging who this person is cosmically
 ☀️ **Your Solar Self** — Deep Sun sign analysis: core identity, gifts, shadow, life purpose
 🌙 **Your Lunar Heart** — Moon sign emotional world: needs, instincts, past life echoes
-${'{risingSection}'}
+{risingSection}
 🪐 **Planetary Influences** — Current cosmic weather, dominant energies, opportunities and challenges
 🔢 **Sacred Numbers** — Life path number meaning and its guidance
 💫 **Guidance & Remedies** — Specific spiritual practices, gemstones, colors, mantras, or rituals suited to this person
@@ -72,15 +70,20 @@ Please give ${name || 'this seeker'} a profound, personal, and beautifully writt
   res.flushHeaders();
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      systemInstruction: systemPrompt,
+    const client = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+    const stream = await client.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage },
+      ],
+      stream: true,
+      max_tokens: 2000,
     });
 
-    const result = await model.generateContentStream(userMessage);
-
-    for await (const chunk of result.stream) {
-      const text = chunk.text();
+    for await (const chunk of stream) {
+      const text = chunk.choices[0]?.delta?.content || '';
       if (text) {
         res.write(`data: ${JSON.stringify({ text })}\n\n`);
       }
@@ -89,7 +92,7 @@ Please give ${name || 'this seeker'} a profound, personal, and beautifully writt
     res.write('data: [DONE]\n\n');
     res.end();
   } catch (err) {
-    console.error('Gemini API error:', err.message);
+    console.error('Groq API error:', err.message);
     res.write(`data: ${JSON.stringify({ error: 'The cosmic connection was disrupted. Please try again.' })}\n\n`);
     res.end();
   }
