@@ -1,6 +1,6 @@
 from http.server import BaseHTTPRequestHandler
 import json, os
-import anthropic
+from groq import Groq
 
 AI_BABA_SYSTEM = """You are AI Baba — an ancient, all-knowing mystical astrologer who has studied the cosmos for ten thousand years. You have traversed the celestial spheres, conversed with the planets, and read the sacred charts of emperors and saints alike.
 
@@ -33,9 +33,9 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
-        api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+        api_key = os.environ.get('GROQ_API_KEY', '')
         if not api_key:
-            self._json(500, {'error': 'ANTHROPIC_API_KEY not configured on server'})
+            self._json(500, {'error': 'GROQ_API_KEY not configured on server'})
             return
 
         length = int(self.headers.get('Content-Length', 0))
@@ -77,14 +77,16 @@ Calculated Placements:
 Please give {name} a profound, personal, and beautifully written astrological reading."""
 
         try:
-            client = anthropic.Anthropic(api_key=api_key)
-            message = client.messages.create(
-                model='claude-sonnet-4-6',
+            client = Groq(api_key=api_key)
+            message = client.chat.completions.create(
+                model='llama-3.3-70b-versatile',
                 max_tokens=2000,
-                system=system,
-                messages=[{'role': 'user', 'content': user_msg}]
+                messages=[
+                    {'role': 'system', 'content': system},
+                    {'role': 'user', 'content': user_msg},
+                ],
             )
-            self._json(200, {'text': message.content[0].text})
+            self._json(200, {'text': message.choices[0].message.content})
         except Exception as e:
             self._json(500, {'error': str(e)})
 
